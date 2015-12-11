@@ -1,0 +1,316 @@
+/**
+ * JJTree template file created by SF JavaCC plugin 1.5.28+ wizard for JavaCC 1.5.0+
+ */
+options
+{
+   IGNORE_CASE = false;
+   MULTI=true;
+   VISITOR=true;
+   NODE_DEFAULT_VOID = true;
+}
+
+PARSER_BEGIN(BasicL)
+import java.io.*;
+import java.util.*;
+@SuppressWarnings("unchecked")
+public class BasicL
+{
+  public static Hashtable ST = new Hashtable();
+  
+  public static void main(String args [])
+  {
+	String temp;
+    STC temp2;
+	
+	BasicL parser=null;
+    if (args.length == 0) {
+      System.out.println("BasicL Parser: Reading from standard input . . .");
+      parser = new BasicL(System.in);
+    } else if (args.length == 1) {
+      System.out.println("BasicL Parser: Reading from file " + args[0] + " . . .");
+      try {
+        parser = new BasicL(new java.io.FileInputStream(args[0]));
+      } catch (java.io.FileNotFoundException e) {
+        System.out.println("BasicL Parser: File " + args[0] + " not found.");
+        return;
+      }
+    } else {
+      System.out.println("BasicL Parser: Usage is one of:");
+      System.out.println(" java BasicL < inputfile");
+      System.out.println("OR");
+      System.out.println(" java BasicL inputfile");
+      return;
+    }
+	
+    try {
+	  SimpleNode root = parser.program();
+	  System.out.println("Abstract Syntax Tree:");
+      root.dump(" ");
+	  
+	  System.out.println();
+	  System.out.println("----------------------------------------------------------------------");
+	  System.out.println("Semantic Checker:");  
+	  System.out.println("----------------------------------------------------------------------");
+	  SemanticCheckVisitor semanticCheckVisitor = new SemanticCheckVisitor();
+	  root.jjtAccept(semanticCheckVisitor, null);
+    } catch (ParseException e) {
+      System.out.println(e.getMessage());
+      System.out.println("BasicL Parser: Encountered errors during parse.");
+    }
+  }
+}
+
+PARSER_END(BasicL)
+TOKEN_MGR_DECLS :
+{
+  static int commentNesting = 0;
+}
+SKIP : /*** Ignoring spaces/tabs/newlines ***/
+{
+  " "
+  | "\t"
+  | "\n"
+  | "\r"
+  | "\f"
+}
+SKIP :
+{
+  < "--" (~["\r", "\n"])* >
+  | "/*" { commentNesting++; } : IN_COMMENT
+}
+<IN_COMMENT> SKIP :
+{
+  "/*" { commentNesting++; }
+  | "*/" { commentNesting--;
+    if (commentNesting == 0)
+    SwitchTo(DEFAULT);
+  }
+  | <~[]>
+}
+TOKEN :
+{
+  < SEMIC : ";" >
+  | < ASSIGN : ":=" >
+  | < LBR : "(" >
+  | < RBR : ")" >
+  | < COMMA : "," >
+  | < PLUS_SIGN : "+" >
+  | < MINUS_SIGN : "-" >
+  | < MULT_SIGN : "*" >
+  | < DIV_SIGN : "/" >
+  | < EQUALS : "=" >
+  | < NOT_EQUALS : "!=" >
+  | < LESS : "<" >
+  | < GREATER : ">" >
+  | < LESS_EQUALS : "<=" >
+  | < GREATER_EQUALS : ">=" >
+  | < COLON : ":" >
+  | < AND : "and" >
+  | < OR : "or" >
+  | < IF : "if" >
+  | < THEN : "then" >
+  | < ELSE : "else" >
+  | < WHILE : "while" >
+  | < DO : "do" >
+  | < NOT : "not" >
+  | < BOOL : "bool" >
+  | < TRUE : "true" >
+  | < FALSE : "false" >
+  | < INT : "int" >
+  | < MAIN : "main" >
+  | < VAR : "var" >
+  | < CONST : "const" >
+  | < VOID : "void" >
+  | < RETURN : "return" >
+  | < BEGIN : "begin" >
+  | < END : "end" >
+}
+TOKEN : /* Numbers and identifiers */
+{
+  < NUM : ( <DIGIT> )+ >
+  | < ID : <CHAR> ( <CHAR> | <DIGIT> | "_" )* >
+  | < #DIGIT : ["0" - "9"] >
+  | < #CHAR : ["a" - "z", "A" - "Z"] >
+  
+}
+TOKEN : /* Anything not recognised so far */
+{
+  < OTHER : ~[] >
+}
+
+SimpleNode program() #program : {}
+{
+  (LOOKAHEAD(2) Decl() )*
+  ( Function() )*
+  MainProg()
+  {return jjtThis;}
+}
+
+void Decl() : {}
+{
+  VarDecl()
+  | ConstDecl()
+  
+}
+
+void VarDeclItem(): {}
+{
+  IdentList() <COLON> Type() 
+}
+
+void VarDecl() #Var  : {}
+{
+  <VAR> VarDeclItem() ( <COMMA> VarDeclItem() )* <SEMIC> 
+  
+}
+
+void ConstDeclItem(): {}
+{
+  Param() <EQUALS> Expression()
+}
+
+void ConstDecl() #ConstDecl : {}
+{
+  <CONST> ConstDeclItem() ( <COMMA> ConstDeclItem() )* <SEMIC> 
+}
+
+void Function() #Function : {}
+{
+  Type() <ID> <LBR> ParamList() <RBR> 
+  <BEGIN>
+  ( Decl() )*
+  ( Statement() <SEMIC> )*
+  <RETURN> ( Expression() | {} ) <SEMIC> 
+  <END>
+}
+
+void Param() : {}
+{
+  Identifier() <COLON> Type()
+}
+
+void ParamList() #ParamList : {}
+{
+  Param() ( <COMMA> Param() )* | {}
+}
+
+void Type()#Type:{Token t;}
+{
+	(
+		(
+		t = <INT> {jjtThis.value = t;}
+		| t = <VOID> {jjtThis.value = t;}
+		| t = <BOOL> {jjtThis.value = t;}
+		| t = <CONST> {jjtThis.value = t;}
+		)
+	)
+}
+
+void MainProg() #MainProg: {}
+{
+  <MAIN>
+  <BEGIN>
+  ( Decl() )*
+  ( Statement() <SEMIC> )*
+  <END>
+}
+
+void Statement() #statement : {Token t;}
+{
+  LOOKAHEAD(2)
+  assignment()
+  | functionCall() 
+  | t =<BEGIN> ( Statement() <SEMIC> )* <END> 
+  | t = <IF>  Condition() <THEN>  Statement() <SEMIC> <ELSE> Statement() 
+  | t = <WHILE>  Condition() <DO> Statement() 
+  | {}
+}
+
+
+void assignment() #Assignment :
+{}
+{
+	Identifier() <ASSIGN> ( Expression() )
+}
+
+void functionCall() #FunctionCall :
+{}
+{
+	Identifier() <LBR> ArgList() <RBR>
+}
+
+void Identifier() #ID: {Token t;}
+{
+   t = <ID> {jjtThis.value = t;}
+}
+
+
+void Expression() : {}
+{
+  Fragment() (BinaryOp()  )* 
+}
+
+void Fragment() : {}
+{
+   Identifier() [ LOOKAHEAD(2) ArgListBrackets() ] 
+  | Boolean()
+  | Number() 
+  | <LBR> Expression() <RBR> 
+}
+
+void Number() #Number: {Token t;}
+{
+   t = <NUM> {jjtThis.value = t;}
+}
+
+void Boolean() #Boolean: {Token t;}
+{
+   t = <TRUE> {jjtThis.value = t;}
+   | t = <FALSE>  {jjtThis.value = t;}
+}
+
+void Condition() #Condition: {Token t;}
+{
+  [ t=<NOT> {jjtThis.value = t;}   ] ConditionOption() [ ( t=<AND> {jjtThis.value = t;}  |t= <OR> {jjtThis.value = t;} ) Condition() ] 
+}
+
+void ConditionOption() : {}
+{
+  LOOKAHEAD(3) <LBR> ConditionOption() <RBR>
+  | Expression() [CompareOp() Expression()]
+}
+
+void IdentList() #IdentList: {}
+{
+  Identifier() ( <COMMA>  Identifier() )* 
+}
+
+void ArgList() #ArgList: {}
+{
+  IdentList() | {}
+}
+
+void ArgListBrackets() : {}
+{
+  <LBR> ArgList() <RBR>
+}
+
+void BinaryOp() #BinaryOp(2) : {Token t;}
+{
+
+  t = <PLUS_SIGN>  Fragment() {jjtThis.value = t;}
+  | t = <MINUS_SIGN> Fragment() {jjtThis.value = t;}
+  | t =<MULT_SIGN>  Fragment() {jjtThis.value = t;}
+  | t =<DIV_SIGN> Fragment() {jjtThis.value = t;}
+}
+
+void CompareOp() #CompareOp : {Token t;}
+{
+	
+  t =<EQUALS> {jjtThis.value = t;}
+  |t = <NOT_EQUALS> {jjtThis.value = t;}
+  |t=  <LESS> {jjtThis.value = t;}
+  |t=  <GREATER> {jjtThis.value = t;}
+  |t= <LESS_EQUALS> {jjtThis.value = t;}
+  |t= <GREATER_EQUALS> {jjtThis.value = t;}
+}
